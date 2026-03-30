@@ -56,6 +56,10 @@ npm run build
 
 Endpoint: `POST /pricelist/upload` (multipart/form-data, campo `file`).
 Endpoint alternativo: `POST /pricelist/upload-from-url` con body JSON `{ "url": "..." }` (supporto Google Drive link condivisibile).
+⚠️ Il link deve puntare a un **file Excel**, non a una cartella Drive.
+
+Se backend/API non disponibile, nel frontend puoi usare:
+- **Altro modo: incolla CSV in locale** (salvataggio nel browser, senza server).
 
 Formato colonne richiesto nella prima riga del file Excel:
 - `codice_prezzo`
