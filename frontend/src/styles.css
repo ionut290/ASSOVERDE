@@ -1,0 +1,52 @@
+:root {
+  font-family: Inter, system-ui, Arial, sans-serif;
+  color: #102a43;
+}
+
+body {
+  margin: 0;
+  background: #f3f7fb;
+}
+
+main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+section {
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #d9e2ec;
+}
+
+h1, h2 {
+  margin-top: 0;
+}
+
+.grid {
+  display: grid;
+  gap: 8px;
+}
+
+input, textarea, button {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #bcccdc;
+}
+
+button {
+  background: #1f5e9e;
+  color: #fff;
+  cursor: pointer;
+}
+
+ul {
+  padding-left: 18px;
+}
+
+li {
+  margin-bottom: 8px;
+}
