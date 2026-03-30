@@ -9,6 +9,7 @@ MVP per creare preventivi partendo da un prezzario:
 
 - `backend/` API FastAPI + SQLite
 - `frontend/` app React (Vite)
+- `netlify.toml` configurazione deploy Netlify (frontend + fallback SPA)
 
 ## Avvio backend
 
@@ -31,6 +32,24 @@ npm run dev
 ```
 
 Frontend disponibile su `http://localhost:5173`.
+
+## Build frontend
+
+```bash
+cd frontend
+npm run build
+```
+
+## Deploy su Netlify (fix 404 / Page not found)
+
+Questa repo include già i fix per evitare la pagina 404 in una SPA React:
+- `netlify.toml` usa `frontend` come base e `frontend/dist` come publish dir.
+- redirect globale `/* -> /index.html 200` (sia in `netlify.toml` che in `frontend/public/_redirects`).
+
+Se configuri il sito manualmente su Netlify:
+- **Base directory**: `frontend`
+- **Build command**: `npm run build`
+- **Publish directory**: `dist`
 
 ## Endpoints principali
 
