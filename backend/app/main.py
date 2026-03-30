@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing
+import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import List, Optional
@@ -12,7 +13,7 @@ from openpyxl import load_workbook
 from pydantic import BaseModel, Field
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "assoverde.db"
+DB_PATH = Path("/tmp/assoverde.db") if os.getenv("NETLIFY") else (BASE_DIR / "assoverde.db")
 
 app = FastAPI(title="Assoverde Preventivi API", version="0.2.0")
 

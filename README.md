@@ -85,11 +85,17 @@ Nel frontend è presente un menu con due viste:
 Questa repo include già i fix per evitare la pagina 404 in una SPA React:
 - `netlify.toml` usa `frontend` come base e `frontend/dist` come publish dir.
 - redirect globale `/* -> /index.html 200` (sia in `netlify.toml` che in `frontend/public/_redirects`).
+- redirect ` /api/* -> /.netlify/functions/api/:splat` per esporre il backend FastAPI come Netlify Function.
 
 Se configuri il sito manualmente su Netlify:
 - **Base directory**: `frontend`
 - **Build command**: `npm run build`
 - **Publish directory**: `dist`
+
+## Backend su Netlify Functions
+
+È incluso un handler Python in `netlify/functions/api.py` che espone FastAPI via Mangum.  
+Su Netlify il database SQLite usa `/tmp/assoverde.db` (storage effimero), quindi i dati possono resettarsi tra deploy/cold start.
 
 ## Endpoints principali
 
