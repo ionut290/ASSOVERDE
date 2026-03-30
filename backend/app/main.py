@@ -3,16 +3,18 @@ from __future__ import annotations
 import sqlite3
 from contextlib import closing
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from openpyxl import load_workbook
 from pydantic import BaseModel, Field
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "assoverde.db"
 
-app = FastAPI(title="Assoverde Preventivi API", version="0.1.0")
+app = FastAPI(title="Assoverde Preventivi API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +35,11 @@ class PricelistItemIn(BaseModel):
 
 class PricelistItem(PricelistItemIn):
     id: int
+
+
+class UploadResult(BaseModel):
+    inserted: int
+    skipped: int
 
 
 class SuggestRequest(BaseModel):
@@ -67,6 +74,71 @@ class QuoteOut(BaseModel):
     descrizione_lavoro: str
     righe: List[QuoteLineOut]
     totale: float
+
+
+HEADER_ALIASES = {
+    "codice_prezzo": {"codice_prezzo", "codice", "codice prezzo"},
+    "capitolo": {"capitolo"},
+    "descrizione": {"descrizione", "voce"},
+    "unita_misura": {"unita_misura", "unita di misura", "unità di misura", "um"},
+    "prezzo_unitario": {"prezzo_unitario", "prezzo orario", "prezzo", "prezzo unitario"},
+}
+
+
+def normalize(value: str) -> str:
+    return " ".join(value.strip().lower().replace("_", " ").split())
+
+
+def extract_excel_rows(file_path: Path) -> list[dict[str, str | float]]:
+    workbook = load_workbook(filename=file_path, data_only=True)
+    sheet = workbook.active
+
+    rows = list(sheet.iter_rows(values_only=True))
+    if not rows:
+        return []
+
+    headers = [normalize(str(cell or "")) for cell in rows[0]]
+    positions: dict[str, int] = {}
+
+    for idx, header in enumerate(headers):
+        for canonical, aliases in HEADER_ALIASES.items():
+            if header in aliases:
+                positions[canonical] = idx
+
+    missing = [key for key in HEADER_ALIASES if key not in positions]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Colonne mancanti nel file Excel. Richieste: "
+                "codice_prezzo, capitolo, descrizione, unita_misura, prezzo_unitario"
+            ),
+        )
+
+    parsed: list[dict[str, str | float]] = []
+    for row in rows[1:]:
+        codice = str(row[positions["codice_prezzo"]] or "").strip()
+        descrizione = str(row[positions["descrizione"]] or "").strip()
+        if not codice or not descrizione:
+            continue
+
+        raw_price = row[positions["prezzo_unitario"]]
+        try:
+            prezzo = float(raw_price)
+        except (TypeError, ValueError):
+            continue
+
+        parsed.append(
+            {
+                "codice_prezzo": codice,
+                "capitolo": str(row[positions["capitolo"]] or "").strip() or "N/D",
+                "descrizione": descrizione,
+                "unita_misura": str(row[positions["unita_misura"]] or "").strip() or "ora",
+                "prezzo_unitario": prezzo,
+            }
+        )
+
+    return parsed
 
 
 def get_conn() -> sqlite3.Connection:
@@ -142,6 +214,51 @@ def create_pricelist_item(payload: PricelistItemIn) -> PricelistItem:
             raise HTTPException(status_code=409, detail="Codice prezzo già presente") from exc
 
     return PricelistItem(id=cursor.lastrowid, **payload.model_dump())
+
+
+@app.post("/pricelist/upload", response_model=UploadResult)
+async def upload_pricelist_excel(file: UploadFile = File(...)) -> UploadResult:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="File non valido")
+
+    extension = Path(file.filename).suffix.lower()
+    if extension not in {".xlsx", ".xlsm", ".xltx", ".xltm"}:
+        raise HTTPException(status_code=400, detail="Carica un file Excel (.xlsx)")
+
+    with NamedTemporaryFile(delete=False, suffix=extension) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        temp_path = Path(tmp.name)
+
+    parsed_rows = extract_excel_rows(temp_path)
+    temp_path.unlink(missing_ok=True)
+
+    inserted = 0
+    skipped = 0
+    with closing(get_conn()) as conn:
+        for row in parsed_rows:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO pricelist_items
+                    (codice_prezzo, capitolo, descrizione, unita_misura, prezzo_unitario)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        row["codice_prezzo"],
+                        row["capitolo"],
+                        row["descrizione"],
+                        row["unita_misura"],
+                        row["prezzo_unitario"],
+                    ),
+                )
+                inserted += 1
+            except sqlite3.IntegrityError:
+                skipped += 1
+
+        conn.commit()
+
+    return UploadResult(inserted=inserted, skipped=skipped)
 
 
 @app.get("/pricelist/items", response_model=List[PricelistItem])

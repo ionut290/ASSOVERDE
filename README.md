@@ -2,6 +2,7 @@
 
 MVP per creare preventivi partendo da un prezzario:
 - inserimento voci prezzario,
+- upload prezzario da file Excel,
 - suggerimenti automatici in base alla descrizione del lavoro,
 - creazione del preventivo con totale.
 
@@ -40,6 +41,23 @@ cd frontend
 npm run build
 ```
 
+## Upload Excel prezzario
+
+Endpoint: `POST /pricelist/upload` (multipart/form-data, campo `file`).
+
+Formato colonne richiesto nella prima riga del file Excel:
+- `codice_prezzo`
+- `capitolo`
+- `descrizione`
+- `unita_misura`
+- `prezzo_unitario`
+
+Alias accettati per alcune colonne (esempio):
+- `unità di misura`, `unita di misura`, `um`
+- `prezzo`, `prezzo orario`, `prezzo unitario`
+
+Estensioni supportate: `.xlsx`, `.xlsm`, `.xltx`, `.xltm`.
+
 ## Deploy su Netlify (fix 404 / Page not found)
 
 Questa repo include già i fix per evitare la pagina 404 in una SPA React:
@@ -54,6 +72,7 @@ Se configuri il sito manualmente su Netlify:
 ## Endpoints principali
 
 - `POST /pricelist/items` crea voce prezzario
+- `POST /pricelist/upload` upload prezzario da Excel
 - `GET /pricelist/items` elenco voci (con `?search=`)
 - `POST /quotes/suggest` suggerisce voci da testo lavoro
 - `POST /quotes` crea preventivo

@@ -15,6 +15,8 @@ export default function App() {
   const [search, setSearch] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(false)
+  const [excelFile, setExcelFile] = useState(null)
+  const [uploadMessage, setUploadMessage] = useState('')
 
   const [cliente, setCliente] = useState('')
   const [oggetto, setOggetto] = useState('')
@@ -47,6 +49,30 @@ export default function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function uploadExcel(event) {
+    event.preventDefault()
+    if (!excelFile) return
+
+    const body = new FormData()
+    body.append('file', excelFile)
+
+    const res = await fetch(`${API_URL}/pricelist/upload`, {
+      method: 'POST',
+      body
+    })
+
+    if (!res.ok) {
+      const err = await res.json()
+      setUploadMessage(`Errore upload: ${err.detail ?? 'file non valido'}`)
+      return
+    }
+
+    const data = await res.json()
+    setUploadMessage(`Upload completato. Inserite: ${data.inserted}, saltate: ${data.skipped}`)
+    setExcelFile(null)
+    await fetchItems(search)
   }
 
   async function suggestItems() {
@@ -98,6 +124,20 @@ export default function App() {
           <input placeholder="Unità misura" value={form.unita_misura} onChange={(e) => setForm({ ...form, unita_misura: e.target.value })} required />
           <input placeholder="Prezzo unitario" type="number" step="0.01" min="0" value={form.prezzo_unitario} onChange={(e) => setForm({ ...form, prezzo_unitario: e.target.value })} required />
           <button disabled={loading}>{loading ? 'Salvataggio...' : 'Aggiungi voce'}</button>
+        </form>
+
+        <h3>Upload prezzario da Excel</h3>
+        <form onSubmit={uploadExcel} className="grid upload-box">
+          <input
+            type="file"
+            accept=".xlsx,.xlsm,.xltx,.xltm"
+            onChange={(e) => setExcelFile(e.target.files?.[0] ?? null)}
+          />
+          <button type="submit" disabled={!excelFile}>Carica file Excel</button>
+          <p className="hint">
+            Colonne richieste nel file: <code>codice_prezzo</code>, <code>capitolo</code>, <code>descrizione</code>, <code>unita_misura</code>, <code>prezzo_unitario</code>
+          </p>
+          {uploadMessage && <p><strong>{uploadMessage}</strong></p>}
         </form>
       </section>
 

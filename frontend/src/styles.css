@@ -50,3 +50,16 @@ ul {
 li {
   margin-bottom: 8px;
 }
+
+.upload-box {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #9fb3c8;
+  border-radius: 10px;
+  background: #f9fbfd;
+}
+
+.hint {
+  color: #486581;
+  font-size: 14px;
+}
