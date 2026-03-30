@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const emptyForm = {
   codice_prezzo: '',
@@ -18,6 +18,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [excelFile, setExcelFile] = useState(null)
   const [uploadMessage, setUploadMessage] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const [cliente, setCliente] = useState('')
   const [oggetto, setOggetto] = useState('')
@@ -54,28 +55,47 @@ export default function App() {
 
   async function uploadExcel(event) {
     event.preventDefault()
-    if (!excelFile) return
-
-    const body = new FormData()
-    body.append('file', excelFile)
-
-    const res = await fetch(`${API_URL}/pricelist/upload`, {
-      method: 'POST',
-      body
-    })
-
-    if (!res.ok) {
-      const err = await res.json()
-      setUploadMessage(`Errore upload: ${err.detail ?? 'file non valido'}`)
+    if (!excelFile) {
+      setUploadMessage('Seleziona prima un file Excel.')
       return
     }
 
-    const data = await res.json()
-    setUploadMessage(
-      `Upload completato ✅ Righe lette: ${data.total_rows}, inserite: ${data.inserted}, saltate: ${data.skipped}`
-    )
-    setExcelFile(null)
-    await fetchItems(search)
+    setUploading(true)
+    setUploadMessage('')
+    try {
+      const body = new FormData()
+      body.append('file', excelFile)
+
+      const res = await fetch(`${API_URL}/pricelist/upload`, {
+        method: 'POST',
+        body
+      })
+
+      if (!res.ok) {
+        let detail = 'upload non riuscito'
+        try {
+          const err = await res.json()
+          detail = err.detail ?? detail
+        } catch {
+          detail = await res.text()
+        }
+        setUploadMessage(`Errore upload: ${detail}`)
+        return
+      }
+
+      const data = await res.json()
+      setUploadMessage(
+        `Upload completato ✅ Righe lette: ${data.total_rows}, inserite: ${data.inserted}, saltate: ${data.skipped}`
+      )
+      setExcelFile(null)
+      await fetchItems(search)
+    } catch (error) {
+      setUploadMessage(
+        `Errore di connessione API (${API_URL}). Controlla che il backend sia avviato e raggiungibile.`
+      )
+    } finally {
+      setUploading(false)
+    }
   }
 
   async function suggestItems() {
@@ -150,7 +170,10 @@ export default function App() {
             accept=".xlsx,.xlsm,.xltx,.xltm"
             onChange={(e) => setExcelFile(e.target.files?.[0] ?? null)}
           />
-          <button type="submit" disabled={!excelFile}>Carica file Excel</button>
+          <button type="submit" disabled={!excelFile || uploading}>
+            {uploading ? 'Caricamento in corso...' : 'Carica file Excel'}
+          </button>
+          <p className="hint"><strong>API:</strong> {API_URL}</p>
           <p className="hint">
             Colonne richieste nel file: <code>codice_prezzo</code>, <code>capitolo</code>, <code>descrizione</code>, <code>unita_misura</code>, <code>prezzo_unitario</code>
           </p>

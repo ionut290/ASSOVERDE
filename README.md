@@ -35,6 +35,13 @@ npm run dev
 
 Frontend disponibile su `http://localhost:5173`.
 
+Se il backend non è su `http://localhost:8000`, imposta:
+
+```bash
+cd frontend
+VITE_API_URL="https://tuo-backend.example.com" npm run dev
+```
+
 ## Build frontend
 
 ```bash
