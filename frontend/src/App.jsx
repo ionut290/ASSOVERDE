@@ -21,6 +21,7 @@ export default function App() {
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(false)
   const [excelFile, setExcelFile] = useState(null)
+  const [driveUrl, setDriveUrl] = useState('')
   const [uploadMessage, setUploadMessage] = useState('')
   const [uploading, setUploading] = useState(false)
 
@@ -39,6 +40,46 @@ export default function App() {
     const query = term ? `?search=${encodeURIComponent(term)}` : ''
     const res = await fetch(`${apiUrl}/pricelist/items${query}`)
     setItems(await res.json())
+  }
+
+  async function uploadFromDriveLink(event) {
+    event.preventDefault()
+    if (!driveUrl.trim()) {
+      setUploadMessage('Inserisci un link Google Drive valido.')
+      return
+    }
+
+    setUploading(true)
+    setUploadMessage('')
+    try {
+      const res = await fetch(`${apiUrl}/pricelist/upload-from-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: driveUrl.trim() })
+      })
+
+      if (!res.ok) {
+        let detail = 'import da link non riuscito'
+        try {
+          const err = await res.json()
+          detail = err.detail ?? detail
+        } catch {
+          detail = await res.text()
+        }
+        setUploadMessage(`Errore import link: ${detail}`)
+        return
+      }
+
+      const data = await res.json()
+      setUploadMessage(
+        `Import da link completato ✅ Righe lette: ${data.total_rows}, inserite: ${data.inserted}, saltate: ${data.skipped}`
+      )
+      await fetchItems(search)
+    } catch (error) {
+      setUploadMessage(`Errore di connessione API (${apiUrl}).`)
+    } finally {
+      setUploading(false)
+    }
   }
 
   useEffect(() => {
@@ -199,6 +240,21 @@ export default function App() {
             Colonne richieste nel file: <code>codice_prezzo</code>, <code>capitolo</code>, <code>descrizione</code>, <code>unita_misura</code>, <code>prezzo_unitario</code>
           </p>
           {uploadMessage && <p><strong>{uploadMessage}</strong></p>}
+        </form>
+
+        <h3>Oppure importa da Google Drive</h3>
+        <form onSubmit={uploadFromDriveLink} className="grid upload-box">
+          <input
+            placeholder="Incolla qui il link condivisibile Google Drive del file Excel"
+            value={driveUrl}
+            onChange={(e) => setDriveUrl(e.target.value)}
+          />
+          <button type="submit" disabled={uploading}>
+            {uploading ? 'Importazione in corso...' : 'Importa da link Drive'}
+          </button>
+          <p className="hint">
+            Condividi il file su Drive con accesso link (chiunque abbia il link).
+          </p>
         </form>
       </section>
 

@@ -55,6 +55,7 @@ npm run build
 ## Upload Excel prezzario
 
 Endpoint: `POST /pricelist/upload` (multipart/form-data, campo `file`).
+Endpoint alternativo: `POST /pricelist/upload-from-url` con body JSON `{ "url": "..." }` (supporto Google Drive link condivisibile).
 
 Formato colonne richiesto nella prima riga del file Excel:
 - `codice_prezzo`
@@ -94,13 +95,14 @@ Se configuri il sito manualmente su Netlify:
 
 ## Backend su Netlify Functions
 
-È incluso un handler Python in `netlify/functions/api.py` che espone FastAPI via Mangum.  
+È incluso un handler Python in `frontend/netlify/functions/api.py` che espone FastAPI via Mangum.  
 Su Netlify il database SQLite usa `/tmp/assoverde.db` (storage effimero), quindi i dati possono resettarsi tra deploy/cold start.
 
 ## Endpoints principali
 
 - `POST /pricelist/items` crea voce prezzario
 - `POST /pricelist/upload` upload prezzario da Excel
+- `POST /pricelist/upload-from-url` import Excel da URL (es. Google Drive)
 - `GET /pricelist/items` elenco voci (con `?search=`)
 - `POST /quotes/suggest` suggerisce voci da testo lavoro
 - `POST /quotes` crea preventivo

@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import List, Optional
+from urllib.parse import parse_qs, urlparse
+from urllib.request import urlopen
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +44,10 @@ class UploadResult(BaseModel):
     inserted: int
     skipped: int
     total_rows: int
+
+
+class UploadFromUrlRequest(BaseModel):
+    url: str
 
 
 class SuggestRequest(BaseModel):
@@ -143,6 +149,22 @@ def extract_excel_rows(file_path: Path) -> list[dict[str, str | float]]:
     return parsed
 
 
+def resolve_google_drive_direct_url(raw_url: str) -> str:
+    parsed = urlparse(raw_url)
+    if "drive.google.com" not in parsed.netloc:
+        return raw_url
+
+    if "/file/d/" in parsed.path:
+        file_id = parsed.path.split("/file/d/")[1].split("/")[0]
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+    query = parse_qs(parsed.query)
+    if "id" in query and query["id"]:
+        return f"https://drive.google.com/uc?export=download&id={query['id'][0]}"
+
+    return raw_url
+
+
 def get_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -229,6 +251,56 @@ async def upload_pricelist_excel(file: UploadFile = File(...)) -> UploadResult:
 
     with NamedTemporaryFile(delete=False, suffix=extension) as tmp:
         content = await file.read()
+        tmp.write(content)
+        temp_path = Path(tmp.name)
+
+    parsed_rows = extract_excel_rows(temp_path)
+    temp_path.unlink(missing_ok=True)
+
+    inserted = 0
+    skipped = 0
+    total_rows = len(parsed_rows)
+    with closing(get_conn()) as conn:
+        for row in parsed_rows:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO pricelist_items
+                    (codice_prezzo, capitolo, descrizione, unita_misura, prezzo_unitario)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        row["codice_prezzo"],
+                        row["capitolo"],
+                        row["descrizione"],
+                        row["unita_misura"],
+                        row["prezzo_unitario"],
+                    ),
+                )
+                inserted += 1
+            except sqlite3.IntegrityError:
+                skipped += 1
+
+        conn.commit()
+
+    return UploadResult(inserted=inserted, skipped=skipped, total_rows=total_rows)
+
+
+@app.post("/pricelist/upload-from-url", response_model=UploadResult)
+def upload_pricelist_from_url(payload: UploadFromUrlRequest) -> UploadResult:
+    resolved_url = resolve_google_drive_direct_url(payload.url)
+    extension = Path(urlparse(resolved_url).path).suffix.lower() or ".xlsx"
+
+    if extension not in {".xlsx", ".xlsm", ".xltx", ".xltm"}:
+        extension = ".xlsx"
+
+    try:
+        with urlopen(resolved_url, timeout=30) as response:
+            content = response.read()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail="Impossibile scaricare il file dal link fornito") from exc
+
+    with NamedTemporaryFile(delete=False, suffix=extension) as tmp:
         tmp.write(content)
         temp_path = Path(tmp.name)
 
