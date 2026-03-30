@@ -40,6 +40,7 @@ class PricelistItem(PricelistItemIn):
 class UploadResult(BaseModel):
     inserted: int
     skipped: int
+    total_rows: int
 
 
 class SuggestRequest(BaseModel):
@@ -235,6 +236,7 @@ async def upload_pricelist_excel(file: UploadFile = File(...)) -> UploadResult:
 
     inserted = 0
     skipped = 0
+    total_rows = len(parsed_rows)
     with closing(get_conn()) as conn:
         for row in parsed_rows:
             try:
@@ -258,7 +260,7 @@ async def upload_pricelist_excel(file: UploadFile = File(...)) -> UploadResult:
 
         conn.commit()
 
-    return UploadResult(inserted=inserted, skipped=skipped)
+    return UploadResult(inserted=inserted, skipped=skipped, total_rows=total_rows)
 
 
 @app.get("/pricelist/items", response_model=List[PricelistItem])

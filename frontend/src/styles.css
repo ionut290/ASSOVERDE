@@ -31,6 +31,16 @@ h1, h2 {
   gap: 8px;
 }
 
+.menu {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.menu .active {
+  background: #0b3a67;
+}
+
 input, textarea, button {
   padding: 10px;
   border-radius: 8px;
@@ -62,4 +72,19 @@ li {
 .hint {
   color: #486581;
   font-size: 14px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border-bottom: 1px solid #d9e2ec;
+  padding: 8px;
+  text-align: left;
 }

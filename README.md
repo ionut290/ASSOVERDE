@@ -3,6 +3,7 @@
 MVP per creare preventivi partendo da un prezzario:
 - inserimento voci prezzario,
 - upload prezzario da file Excel,
+- riscontro upload (righe lette/inserite/saltate),
 - suggerimenti automatici in base alla descrizione del lavoro,
 - creazione del preventivo con totale.
 
@@ -57,6 +58,17 @@ Alias accettati per alcune colonne (esempio):
 - `prezzo`, `prezzo orario`, `prezzo unitario`
 
 Estensioni supportate: `.xlsx`, `.xlsm`, `.xltx`, `.xltm`.
+
+Risposta upload:
+- `total_rows`: righe lette dal file
+- `inserted`: righe inserite
+- `skipped`: righe saltate (es. codice già presente o dati non validi)
+
+## Menu Prezzario (frontend)
+
+Nel frontend è presente un menu con due viste:
+- **Preventivo**: creazione preventivo con suggerimenti
+- **Prezzario**: elenco tabellare completo delle voci con ricerca
 
 ## Deploy su Netlify (fix 404 / Page not found)
 

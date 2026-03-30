@@ -11,6 +11,7 @@ const emptyForm = {
 }
 
 export default function App() {
+  const [activeMenu, setActiveMenu] = useState('preventivo')
   const [items, setItems] = useState([])
   const [search, setSearch] = useState('')
   const [form, setForm] = useState(emptyForm)
@@ -70,7 +71,9 @@ export default function App() {
     }
 
     const data = await res.json()
-    setUploadMessage(`Upload completato. Inserite: ${data.inserted}, saltate: ${data.skipped}`)
+    setUploadMessage(
+      `Upload completato ✅ Righe lette: ${data.total_rows}, inserite: ${data.inserted}, saltate: ${data.skipped}`
+    )
     setExcelFile(null)
     await fetchItems(search)
   }
@@ -114,6 +117,20 @@ export default function App() {
   return (
     <main>
       <h1>Assoverde • Preventivi con suggerimenti</h1>
+      <nav className="menu">
+        <button
+          className={activeMenu === 'preventivo' ? 'active' : ''}
+          onClick={() => setActiveMenu('preventivo')}
+        >
+          Preventivo
+        </button>
+        <button
+          className={activeMenu === 'prezzario' ? 'active' : ''}
+          onClick={() => setActiveMenu('prezzario')}
+        >
+          Prezzario
+        </button>
+      </nav>
 
       <section>
         <h2>1) Nuova voce prezzario</h2>
@@ -141,25 +158,46 @@ export default function App() {
         </form>
       </section>
 
-      <section>
-        <h2>Prezzario</h2>
-        <input
-          placeholder="Cerca per codice/capitolo/descrizione"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button onClick={() => fetchItems(search)}>Cerca</button>
-        <ul>
-          {items.map((item) => (
-            <li key={item.id}>
-              <strong>{item.codice_prezzo}</strong> — {item.descrizione} ({item.unita_misura}) • € {item.prezzo_unitario.toFixed(2)}
-            </li>
-          ))}
-        </ul>
-      </section>
+      {activeMenu === 'prezzario' && (
+        <section>
+          <h2>Menu Prezzario • Voci elencate</h2>
+          <input
+            placeholder="Cerca per codice/capitolo/descrizione"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <button onClick={() => fetchItems(search)}>Cerca</button>
+          <p><strong>Totale voci trovate:</strong> {items.length}</p>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Codice</th>
+                  <th>Capitolo</th>
+                  <th>Descrizione</th>
+                  <th>UM</th>
+                  <th>Prezzo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.codice_prezzo}</td>
+                    <td>{item.capitolo}</td>
+                    <td>{item.descrizione}</td>
+                    <td>{item.unita_misura}</td>
+                    <td>€ {item.prezzo_unitario.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-      <section>
-        <h2>2) Nuovo preventivo</h2>
+      {activeMenu === 'preventivo' && (
+        <section>
+          <h2>2) Nuovo preventivo</h2>
         <div className="grid">
           <input placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} />
           <input placeholder="Oggetto" value={oggetto} onChange={(e) => setOggetto(e.target.value)} />
@@ -199,7 +237,8 @@ export default function App() {
             <p><strong>Totale:</strong> € {quoteResult.totale.toFixed(2)}</p>
           </article>
         )}
-      </section>
+        </section>
+      )}
     </main>
   )
 }
