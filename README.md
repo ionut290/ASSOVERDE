@@ -42,6 +42,9 @@ cd frontend
 VITE_API_URL="https://tuo-backend.example.com" npm run dev
 ```
 
+In alternativa (anche in produzione), puoi impostare l'URL backend direttamente dal campo
+**Configurazione API backend** nella UI: il valore viene salvato in `localStorage`.
+
 ## Build frontend
 
 ```bash

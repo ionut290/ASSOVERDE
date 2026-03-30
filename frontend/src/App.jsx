@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const DEFAULT_API_URL = import.meta.env.VITE_API_URL
+  || (window.location.hostname === 'localhost'
+    ? 'http://localhost:8000'
+    : `${window.location.origin}/api`)
 
 const emptyForm = {
   codice_prezzo: '',
@@ -11,6 +14,7 @@ const emptyForm = {
 }
 
 export default function App() {
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('api_url') || DEFAULT_API_URL)
   const [activeMenu, setActiveMenu] = useState('preventivo')
   const [items, setItems] = useState([])
   const [search, setSearch] = useState('')
@@ -27,21 +31,25 @@ export default function App() {
   const [quantitaById, setQuantitaById] = useState({})
   const [quoteResult, setQuoteResult] = useState(null)
 
+  useEffect(() => {
+    localStorage.setItem('api_url', apiUrl)
+  }, [apiUrl])
+
   async function fetchItems(term = '') {
     const query = term ? `?search=${encodeURIComponent(term)}` : ''
-    const res = await fetch(`${API_URL}/pricelist/items${query}`)
+    const res = await fetch(`${apiUrl}/pricelist/items${query}`)
     setItems(await res.json())
   }
 
   useEffect(() => {
     fetchItems()
-  }, [])
+  }, [apiUrl])
 
   async function saveItem(event) {
     event.preventDefault()
     setLoading(true)
     try {
-      await fetch(`${API_URL}/pricelist/items`, {
+      await fetch(`${apiUrl}/pricelist/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, prezzo_unitario: Number(form.prezzo_unitario) })
@@ -66,7 +74,7 @@ export default function App() {
       const body = new FormData()
       body.append('file', excelFile)
 
-      const res = await fetch(`${API_URL}/pricelist/upload`, {
+      const res = await fetch(`${apiUrl}/pricelist/upload`, {
         method: 'POST',
         body
       })
@@ -91,7 +99,7 @@ export default function App() {
       await fetchItems(search)
     } catch (error) {
       setUploadMessage(
-        `Errore di connessione API (${API_URL}). Controlla che il backend sia avviato e raggiungibile.`
+        `Errore di connessione API (${apiUrl}). Controlla che il backend sia avviato e raggiungibile.`
       )
     } finally {
       setUploading(false)
@@ -99,7 +107,7 @@ export default function App() {
   }
 
   async function suggestItems() {
-    const res = await fetch(`${API_URL}/quotes/suggest`, {
+    const res = await fetch(`${apiUrl}/quotes/suggest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ descrizione_lavoro: descrizioneLavoro, top_k: 5 })
@@ -113,7 +121,7 @@ export default function App() {
       .filter(([, q]) => Number(q) > 0)
       .map(([item_id, quantita]) => ({ item_id: Number(item_id), quantita: Number(quantita) }))
 
-    const res = await fetch(`${API_URL}/quotes`, {
+    const res = await fetch(`${apiUrl}/quotes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -137,6 +145,19 @@ export default function App() {
   return (
     <main>
       <h1>Assoverde • Preventivi con suggerimenti</h1>
+      <section>
+        <h2>Configurazione API backend</h2>
+        <div className="grid">
+          <input
+            value={apiUrl}
+            onChange={(e) => setApiUrl(e.target.value)}
+            placeholder="https://tuo-backend.example.com"
+          />
+          <p className="hint">
+            Imposta qui l'URL del backend FastAPI (in locale: <code>http://localhost:8000</code>).
+          </p>
+        </div>
+      </section>
       <nav className="menu">
         <button
           className={activeMenu === 'preventivo' ? 'active' : ''}
@@ -173,7 +194,7 @@ export default function App() {
           <button type="submit" disabled={!excelFile || uploading}>
             {uploading ? 'Caricamento in corso...' : 'Carica file Excel'}
           </button>
-          <p className="hint"><strong>API:</strong> {API_URL}</p>
+          <p className="hint"><strong>API:</strong> {apiUrl}</p>
           <p className="hint">
             Colonne richieste nel file: <code>codice_prezzo</code>, <code>capitolo</code>, <code>descrizione</code>, <code>unita_misura</code>, <code>prezzo_unitario</code>
           </p>
